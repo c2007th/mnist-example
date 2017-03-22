@@ -114,4 +114,3 @@ for _ in range(20000):
         print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
 
         #saver.save(sess, 'cnn_session', global_step=i)
-

@@ -9,7 +9,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 np.random.seed(20160704)
 tf.set_random_seed(20160704)
 
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("/tmp/mist_data/", one_hot=True)
 
 # CNN-03
 # CNNを定義していく
@@ -113,4 +113,5 @@ for _ in range(20000):
         acc_val = np.mean(acc_vals)
         print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
 
-        #saver.save(sess, 'cnn_session', global_step=
+        # saver.save(sess, 'cnn_session', global_step=
+# 経過時間の追加をする

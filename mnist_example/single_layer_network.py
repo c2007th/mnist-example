@@ -85,7 +85,7 @@ class SingleLayerNetwork:
         """
         # 変数の初期化
         sess = tf.InteractiveSession()
-        sess.run(tf.initialize_all_variables())
+        sess.run(tf.global_variables_initializer())
         summary = tf.summary.merge_all()
         # TensorBoardデータの出力先
         writer = tf.summary.FileWriter("/tmp/tensorflow/mnist_sl_logs",
@@ -115,19 +115,19 @@ for _ in range(2000):
     # 取り出したデータを記憶しており、呼び出すごとに次のデータを取り出す。
     batch_xs, batch_ts = mnist.train.next_batch(100)
     # 勾配降下法によるパラメータの修正
-    nn.sess.run(nn.train_step, feed_dict={nn.x: batch_xs, nn.t: batch_ts})
+    _, summary = nn.sess.run([nn.train_step, nn.summary], feed_dict={nn.x: batch_xs, nn.t: batch_ts})
     # 100回ごとに、その時点のパラメータでテストセットに対する誤差関数
     # と正解率の値を計算
     if i % 100 == 0:
-        summary, loss_val, acc_val = nn.sess.run(
-                [nn.summary, nn.loss, nn.accuracy],
-                feed_dict={nn.x: mnist.test.images, nn.t: mnist.test.labels})
+        loss_val, acc_val = nn.sess.run([nn.loss, nn.accuracy],
+                                        feed_dict={nn.x: mnist.test.images, nn.t: mnist.test.labels})
         print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
 
-        # TensorBoard用
-        nn.writer.add_summary(summary, i)
         # 学習データのセーブ
         # nn.saver.save(nn.sess, '/tmp/tensorflow/saver/sln_session', global_step=i)
+
+    # TensorBoard用
+    nn.writer.add_summary(summary, i)
 
 # 経過時間の表示
 elapsed_time = time.time() - start_time

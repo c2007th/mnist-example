@@ -1,27 +1,38 @@
 # coding=utf-8
+
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
+import time
 from tensorflow.examples.tutorials.mnist import input_data
 
+# 乱数のシード
 np.random.seed(20160612)
 tf.set_random_seed(20160612)
 
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("/tmp/tensorflow/data/", one_hot=True)
 
 
 class SingleLayerNetwork:
+    """
+    中間層が1層のニューラルネットワーク
+    """
 
     # 層の数
     NUM_UNITS = 1024
-    # コンストラクタ
+
     def __init__(self):
-        # グラフコンテキストを開始
+        """
+        コンストラクタ
+        グラフコンテキストを開始
+        """
         with tf.Graph().as_default():
             self.prepare_model()
             self.prepare_session()
 
     def prepare_model(self):
+        """
+        モデルの作成
+        """
         with tf.name_scope('input'):
             x = tf.placeholder(tf.float32, [None, 784], name='input')
 
@@ -68,24 +79,34 @@ class SingleLayerNetwork:
         self.accuracy = accuracy
 
     def prepare_session(self):
+        """
+        セッション用意
+        データの保存 
+        """
         # 変数の初期化
         sess = tf.InteractiveSession()
         sess.run(tf.initialize_all_variables())
         summary = tf.summary.merge_all()
         # TensorBoardデータの出力先
-        writer = tf.summary.FileWriter("/tmp/mnist_sl_logs", sess.graph)
+        writer = tf.summary.FileWriter("/tmp/tensorflow/mnist_sl_logs",
+                                       sess.graph)
+
+        # 学習データ保存の定義
+        # saver = tf.train.Saver()
 
         # インスタンス変数として公開
         self.sess = sess
         self.summary = summary
         self.writer = writer
 
-# 以下はセッションを用意してパラメータの最適化を実行して分類結果
-# サンプルの表示
-# 内容は、MSE-06～MSE-08 とまったく同じ
+
+# 以下はセッションを用意してパラメータの最適化を実行
 
 # インスタンスを作成
 nn = SingleLayerNetwork()
+
+# 開始時間
+start_time = time.time()
 
 # 勾配降下法でパラメータの最適化
 i = 0
@@ -102,4 +123,12 @@ for _ in range(2000):
                 [nn.summary, nn.loss, nn.accuracy],
                 feed_dict={nn.x: mnist.test.images, nn.t: mnist.test.labels})
         print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
+
+        # TensorBoard用
         nn.writer.add_summary(summary, i)
+        # 学習データのセーブ
+        # nn.saver.save(nn.sess, '/tmp/tensorflow/saver/sln_session', global_step=i)
+
+# 経過時間の表示
+elapsed_time = time.time() - start_time
+print(("elapsed_time:{0}".format(elapsed_time)) + "[sec]")

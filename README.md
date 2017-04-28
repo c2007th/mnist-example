@@ -10,3 +10,5 @@ double_layer_CNN_reducememory.py:
 畳み込みニューラルネットワーク(メモリ削減の工夫したもの)   
 double_layer_CNN_restore.py:   
 畳み込みニューラルネットワーク(学習モデルを利用するもの)  
+cnn_session_data:   
+double_layer_CNN_restoreで利用する学習モデル（CNNで20000回）

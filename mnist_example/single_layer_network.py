@@ -92,7 +92,8 @@ class SingleLayerNetwork:
                                        sess.graph)
 
         # 学習データ保存の定義
-        # saver = tf.train.Saver()
+        saver = tf.train.Saver()
+        self.saver = saver
 
         # インスタンス変数として公開
         self.sess = sess
@@ -124,7 +125,7 @@ for _ in range(2000):
         print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
 
         # 学習データのセーブ
-        # nn.saver.save(nn.sess, '/tmp/tensorflow/saver/sln_session', global_step=i)
+        nn.saver.save(nn.sess, '/tmp/tensorflow/saver/sln_session', global_step=i)
 
     # TensorBoard用
     nn.writer.add_summary(summary, i)

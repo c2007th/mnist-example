@@ -1,102 +1,149 @@
-# -*- coding: utf-8 -*-
+# -*-# coding=utf-8
+
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
-from numpy.random import multivariate_normal, permutation
-import pandas as pd
-from pandas import DataFrame, Series
+import time
+from tensorflow.examples.tutorials.mnist import input_data
 
-np.random.seed(20160614)
-#Tensorflowの乱数シードも利用
-tf.set_random_seed(20160614)
+# 乱数のシード
+np.random.seed(20160612)
+tf.set_random_seed(20160612)
 
-#トレーニングセットのデータを乱数で生成
-def generate_datablock(n, mu, var, t):
-    data = multivariate_normal(mu, np.eye(2)*var, n)
-    df = DataFrame(data, columns=['x1', 'x2'])
-    df['t'] = t
-    return df
+mnist = input_data.read_data_sets("/tmp/tensorflow/data/", one_hot=True)
 
-#データ全体の平均が0になるように配置
-df0 = generate_datablock(30, [-7,-7], 18, 1)
-df1 = generate_datablock(30, [-7,7], 18, 0)
-df2 = generate_datablock(30, [7,-7], 18, 0)
-df3 = generate_datablock(30, [7,7],18 , 1)
 
-df = pd.concat([df0, df1, df2, df3], ignore_index=True)
-train_set = df.reindex(permutation(df.index)).reset_index(drop=True)
+class SingleLayerNetwork:
+    """
+    中間層が2層のニューラルネットワーク
+    """
 
-print(train_set)
+    # 層の数
+    NUM_UNITS1 = 250
+    NUM_UNITS2 = 250
 
-#SNE-03 (x1,x2)とtのすべてのデータを縦に並べた行列を取り出す
-train_x = train_set[['x1', 'x2']].as_matrix()
-train_t = train_set['t'].as_matrix().reshape([len(train_set), 1])
+    def __init__(self):
+        """
+        コンストラクタ
+        グラフコンテキストを開始
+        """
+        with tf.Graph().as_default():
+            self.prepare_model()
+            self.prepare_session()
 
-#===隠れ層の値から、出力層の値を計算する===
-#隠れ層のノード数を指定
-num_units1 = 2
-num_units2 = 2
+    def prepare_model(self):
+        """
+        モデルの作成
+        """
+        with tf.name_scope('input'):
+            x = tf.placeholder(tf.float32, [None, 784], name='input')
 
-#xに対応するプレースホルダー
-x = tf.placeholder(tf.float32, [None, 2])
+        with tf.name_scope('hidden1'):
+            # 隠れ層1の出力を計算
+            w1 = tf.Variable(tf.truncated_normal([784, self.NUM_UNITS1]),
+                             name='weights')
+            b1 = tf.Variable(tf.zeros([self.NUM_UNITS1]), name='biases')
+            hidden1 = tf.nn.relu(tf.matmul(x, w1) + b1, name='hidden1')
 
-#w1,b1に対応するVariable
-w1 = tf.Variable(tf.truncated_normal([2, num_units1]))
-b1 = tf.Variable(tf.zeros([num_units1]))
-#活性化関数
-hidden1 = tf.nn.tanh(tf.matmul(x, w1) + b1)
+        with tf.name_scope('hidden2'):
+            # 隠れ層2の出力を計算
+            w2 = tf.Variable(tf.truncated_normal([self.NUM_UNITS1, self.NUM_UNITS2]),
+                                                  name='weights')
+            b2 = tf.Variable(tf.zeros([self.NUM_UNITS2]), name='biases')
+            hidden2 = tf.nn.relu(tf.matmul(hidden1, w2) + b2, name='hidden2')
 
-#w2,b2に対応するVariable
-w2 = tf.Variable(tf.truncated_normal([num_units1, num_units2]))
-b2 = tf.Variable(tf.zeros([num_units2]))
-#活性化関数
-hidden2 = tf.nn.tanh(tf.matmul(hidden1, w2) + b2)
+        with tf.name_scope('output'):
+            # ソフトマックス関数で確率を計算
+            w0 = tf.Variable(tf.zeros([self.NUM_UNITS2, 10]), name='weights')
+            b0 = tf.Variable(tf.zeros([10]), name='biases')
+            p = tf.nn.softmax(tf.matmul(hidden2, w0) + b0, name='softmax')
 
-w0 = tf.Variable(tf.zeros([num_units2, 1]))
-b0 = tf.Variable(tf.zeros([1]))
-p = tf.nn.sigmoid(tf.matmul(hidden2, w0) + b0)
+        with tf.name_scope('optimizer'):
+            t = tf.placeholder(tf.float32, [None, 10], name='labels')
+            # 誤差関数
+            loss = -tf.reduce_sum(t * tf.log(p), name='loss')
+            # トレーニングアルゴリズム
+            train_step = tf.train.AdamOptimizer().minimize(loss)
 
-#誤差関数、トレーニングアルゴリズム、正解率を計算を定義
-t = tf.placeholder(tf.float32, [None, 1])
-loss = -tf.reduce_sum(t*tf.log(p) + (1-t)*tf.log(1-p))
-train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
-correct_prediction = tf.equal(tf.sign(p-0.5), tf.sign(t-0.5))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        with tf.name_scope('evaluator'):
+            correct_prediction = tf.equal(tf.argmax(p, 1), tf.argmax(t, 1))
+            # 正解率
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),
+                                      name='accuracy')
 
-#最適化処理を行う
-sess = tf.InteractiveSession()
-sess.run(tf.initialize_all_variables())
+        # 値の変化をグラフ表示する要素を宣言
+        # 折れ線グラフ
+        tf.summary.scalar("loss", loss)
+        tf.summary.scalar("accuracy", accuracy)
+        # ヒストグラム
 
+        tf.summary.histogram("weights_hidden1", w1)
+        tf.summary.histogram("biases_hidden1", b1)
+
+        tf.summary.histogram("weights_hidden2", w2)
+        tf.summary.histogram("biases_hidden2", b2)
+
+        tf.summary.histogram("weights_output", w0)
+        tf.summary.histogram("biases_output", b0)
+
+        # 外部から参照する必要のあるものをインスタンス変数として公開
+        self.x, self.t, self.p = x, t, p
+        self.train_step = train_step
+        self.loss = loss
+        self.accuracy = accuracy
+
+    def prepare_session(self):
+        """
+        セッション用意
+        データの保存 
+        """
+        # 変数の初期化
+        sess = tf.InteractiveSession()
+        sess.run(tf.global_variables_initializer())
+        summary = tf.summary.merge_all()
+        # TensorBoardデータの出力先
+        writer = tf.summary.FileWriter("/tmp/tensorflow/mnist_dl_logs",
+                                       sess.graph)
+
+        # 学習データ保存の定義
+        # saver = tf.train.Saver()
+
+        # インスタンス変数として公開
+        self.sess = sess
+        self.summary = summary
+        self.writer = writer
+
+
+# 以下はセッションを用意してパラメータの最適化を実行
+
+# インスタンスを作成
+nn = SingleLayerNetwork()
+
+# 開始時間
+start_time = time.time()
+
+# 最適化
 i = 0
-for _ in range(4000):
+for _ in range(2000):
     i += 1
-    sess.run(train_step, feed_dict={x:train_x, t:train_t})
+    # 取り出したデータを記憶しており、呼び出すごとに次のデータを取り出す。
+    batch_xs, batch_ts = mnist.train.next_batch(100)
+    # パラメータの修正
+    _, summary = nn.sess.run([nn.train_step, nn.summary],
+                             feed_dict={nn.x: batch_xs, nn.t: batch_ts})
+    # 100回ごとに、その時点のパラメータでテストセットに対する誤差関数
+    # と正解率の値を計算
     if i % 100 == 0:
-        loss_val, acc_val = sess.run(
-                [loss, accuracy], feed_dict={x:train_x, t:train_t})
-        print('Step: %d, Loss: %f, Accuracy: %f'
-                %(i, loss_val, acc_val))
+        loss_val, acc_val = nn.sess.run([nn.loss, nn.accuracy],
+                                        feed_dict={nn.x: mnist.test.images,
+                                                   nn.t: mnist.test.labels})
+        print('Step: %d, Loss: %f, Accuracy: %f' % (i, loss_val, acc_val))
 
-#得られた結果をグラフにする
-train_set1 = train_set[train_set['t']==1]
-train_set2 = train_set[train_set['t']==0]
+        # 学習データのセーブ
+        # nn.saver.save(nn.sess, '/tmp/tensorflow/saver/dln_session', global_step=i)
 
-fig = plt.figure(figsize=(6,6))
-subplot = fig.add_subplot(1,1,1)
-subplot.set_ylim([-15,15])
-subplot.set_xlim([-15,15])
-subplot.scatter(train_set1.x1, train_set1.x2, marker='x')
-subplot.scatter(train_set2.x1, train_set2.x2, marker='o')
+    # TensorBoard用
+    nn.writer.add_summary(summary, i)
 
-locations = []
-#0から30までで100個データを作る
-for x2 in np.linspace(-15, 15, 100):
-    for x1 in np.linspace(-15, 15, 100):
-        locations.append((x1,x2))
-
-p_vals = sess.run(p, feed_dict={x:locations})
-p_vals = p_vals.reshape((100, 100))
-subplot.imshow(p_vals, origin='lower', extent=(-15,15,-15,15),
-               cmap=plt.cm.gray_r, alpha=0.5)
-
-plt.show()
+# 経過時間の表示
+elapsed_time = time.time() - start_time
+print(("elapsed_time:{0}".format(elapsed_time)) + "[sec]")

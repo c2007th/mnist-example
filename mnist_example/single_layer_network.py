@@ -108,13 +108,13 @@ nn = SingleLayerNetwork()
 # 開始時間
 start_time = time.time()
 
-# 勾配降下法でパラメータの最適化
+# 最適化
 i = 0
 for _ in range(2000):
     i += 1
     # 取り出したデータを記憶しており、呼び出すごとに次のデータを取り出す。
     batch_xs, batch_ts = mnist.train.next_batch(100)
-    # 勾配降下法によるパラメータの修正
+    # パラメータの修正
     _, summary = nn.sess.run([nn.train_step, nn.summary], feed_dict={nn.x: batch_xs, nn.t: batch_ts})
     # 100回ごとに、その時点のパラメータでテストセットに対する誤差関数
     # と正解率の値を計算
